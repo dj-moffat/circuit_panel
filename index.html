@@ -1,0 +1,2625 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Circuit Map</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f6f7;
+      --surface: rgba(255, 255, 255, .78);
+      --surface-solid: #ffffff;
+      --surface-soft: #f8f9fa;
+      --ink: #121417;
+      --muted: #68717c;
+      --hairline: rgba(28, 33, 38, .12);
+      --wall: #111418;
+      --grid: rgba(26, 33, 40, .09);
+      --accent: #006bd6;
+      --accent-soft: rgba(0, 107, 214, .12);
+      --energized: #34c759;
+      --energized-soft: rgba(52, 199, 89, .26);
+      --danger: #d92d20;
+      --shadow: 0 22px 60px rgba(18, 24, 31, .13);
+      --toolbar-h: 66px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101113;
+        --surface: rgba(28, 30, 33, .76);
+        --surface-solid: #1b1d20;
+        --surface-soft: #22252a;
+        --ink: #f5f6f7;
+        --muted: #a3abb5;
+        --hairline: rgba(255, 255, 255, .13);
+        --wall: #f4f6f8;
+        --grid: rgba(255, 255, 255, .08);
+        --accent: #4da3ff;
+        --accent-soft: rgba(77, 163, 255, .17);
+        --shadow: 0 24px 70px rgba(0, 0, 0, .46);
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      max-width: 100%;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, .74), transparent 240px),
+        var(--bg);
+      color: var(--ink);
+      overflow: hidden;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 260px),
+          var(--bg);
+      }
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--hairline);
+      background: var(--surface-solid);
+      color: var(--ink);
+      border-radius: 999px;
+      min-height: 36px;
+      padding: 0 13px;
+      cursor: pointer;
+      transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
+    }
+
+    button:hover {
+      border-color: color-mix(in srgb, var(--accent), var(--hairline) 45%);
+    }
+
+    button:active {
+      transform: scale(.97);
+    }
+
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent), transparent 68%);
+      outline-offset: 2px;
+    }
+
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      grid-template-rows: var(--toolbar-h) minmax(0, 1fr);
+    }
+
+    .topbar {
+      grid-column: 1 / -1;
+      height: var(--toolbar-h);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px max(18px, env(safe-area-inset-left)) 10px max(18px, env(safe-area-inset-right));
+      background: var(--surface);
+      border-bottom: 1px solid var(--hairline);
+      backdrop-filter: blur(24px) saturate(1.55);
+      -webkit-backdrop-filter: blur(24px) saturate(1.55);
+      z-index: 20;
+    }
+
+    .brand {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 19px;
+      line-height: 1.1;
+      letter-spacing: 0;
+      font-weight: 720;
+    }
+
+    .brand span {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .segmented {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--hairline);
+      background: color-mix(in srgb, var(--surface-solid), transparent 10%);
+      border-radius: 999px;
+      padding: 3px;
+      max-width: min(52vw, 520px);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .segmented::-webkit-scrollbar { display: none; }
+
+    .segmented button {
+      flex: 0 0 auto;
+      border: 0;
+      min-height: 30px;
+      padding: 0 12px;
+      background: transparent;
+      color: var(--muted);
+      box-shadow: none;
+    }
+
+    .segmented button[aria-pressed="true"] {
+      color: var(--ink);
+      background: var(--surface-solid);
+      box-shadow: 0 4px 14px rgba(14, 19, 24, .10);
+    }
+
+    .icon-button {
+      width: 38px;
+      min-width: 38px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+    }
+
+    .icon-button svg,
+    .tool-button svg,
+    .circuit-row svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+
+    .map-stage {
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
+      padding: 28px 28px 56px;
+      perspective: 2600px;
+      perspective-origin: 48% 0;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .floor-stack {
+      width: 95%;
+      min-width: min(560px, 95%);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      padding-top: 14px;
+      transform-style: preserve-3d;
+    }
+
+    .floor-card {
+      position: relative;
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+      background: var(--surface-solid);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transform-origin: 50% 0;
+      transition:
+        transform .48s cubic-bezier(.22, 1, .36, 1),
+        margin .48s cubic-bezier(.22, 1, .36, 1),
+        opacity .28s ease,
+        box-shadow .28s ease;
+    }
+
+    .floor-card + .floor-card {
+      margin-top: -252px;
+    }
+
+    .floor-card:nth-child(1) { z-index: 9; transform: rotateX(62deg); }
+    .floor-card:nth-child(2) { z-index: 8; transform: rotateX(58deg); }
+    .floor-card:nth-child(3) { z-index: 7; transform: rotateX(54deg); }
+    .floor-card:nth-child(n+4) { z-index: 6; transform: rotateX(50deg); }
+
+    .floor-card:hover,
+    .floor-card.is-focused {
+      transform: translateY(-26px) rotateX(38deg) scale(1.018);
+      box-shadow: 0 28px 70px rgba(16, 24, 32, .22);
+      z-index: 30;
+    }
+
+    .floor-stack.single .floor-card {
+      margin-top: 0;
+      transform: rotateX(0);
+    }
+
+    .floor-stack.single .floor-card:hover,
+    .floor-stack.single .floor-card.is-focused {
+      transform: translateY(-3px) rotateX(0) scale(1.003);
+    }
+
+    .floor-card.hidden {
+      display: none;
+    }
+
+    .floor-title {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--hairline);
+      background: color-mix(in srgb, var(--surface-solid), var(--surface-soft) 42%);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-size: 12px;
+      font-weight: 760;
+      color: color-mix(in srgb, var(--ink), var(--muted) 24%);
+    }
+
+    .canvas-wrap {
+      position: relative;
+      height: 486px;
+      background-color: color-mix(in srgb, var(--surface-solid), var(--surface-soft) 50%);
+      background-image: radial-gradient(var(--grid) 1px, transparent 1px);
+      background-size: 18px 18px;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+
+    .canvas-wrap.is-drag-over {
+      outline: 3px solid color-mix(in srgb, var(--accent), transparent 45%);
+      outline-offset: -7px;
+    }
+
+    .floor-plan-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: .44;
+      pointer-events: none;
+      z-index: 0;
+      user-select: none;
+    }
+
+    svg.plan {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+    }
+
+    .floor-geometry {
+      transform: translate(92px, 0) scale(.765, 1);
+      transform-origin: 0 0;
+    }
+
+    .wall-path,
+    .user-wall {
+      fill: none;
+      stroke: var(--wall);
+      stroke-width: 4;
+      stroke-linecap: square;
+      stroke-linejoin: miter;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .user-wall {
+      cursor: pointer;
+    }
+
+    .user-wall.is-selected {
+      stroke: var(--accent);
+      stroke-width: 6;
+      filter: drop-shadow(0 0 7px var(--accent-soft));
+    }
+
+    .wall-preview {
+      stroke: var(--accent);
+      stroke-dasharray: 8 7;
+      pointer-events: none;
+    }
+
+    .room-label {
+      fill: color-mix(in srgb, var(--ink), transparent 25%);
+      font-size: 12px;
+      text-anchor: middle;
+      dominant-baseline: middle;
+      pointer-events: none;
+      letter-spacing: 0;
+    }
+
+    .click-layer {
+      fill: transparent;
+      cursor: crosshair;
+      pointer-events: all;
+    }
+
+    .device {
+      position: absolute;
+      left: var(--x);
+      top: var(--y);
+      width: 26px;
+      height: 26px;
+      border: 1px solid color-mix(in srgb, var(--wall), transparent 18%);
+      background: var(--surface-solid);
+      color: var(--ink);
+      transform: translate(-50%, -50%);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 7px 18px rgba(12, 18, 24, .16);
+      z-index: 4;
+      padding: 0;
+    }
+
+    .device.outlet {
+      border-radius: 7px;
+    }
+
+    .device.light {
+      border-radius: 999px;
+    }
+
+    .device svg {
+      width: 15px;
+      height: 15px;
+      pointer-events: none;
+    }
+
+    .device .badge {
+      position: absolute;
+      right: -8px;
+      bottom: -8px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      border: 1px solid var(--hairline);
+      background: var(--surface-solid);
+      font-size: 10px;
+      font-weight: 760;
+      line-height: 1;
+    }
+
+    .device.is-active {
+      color: #06180c;
+      background: var(--energized);
+      border-color: color-mix(in srgb, var(--energized), #073d18 40%);
+      box-shadow:
+        0 0 0 8px var(--energized-soft),
+        0 0 26px rgba(52, 199, 89, .75),
+        0 12px 28px rgba(5, 86, 31, .24);
+      animation: devicePulse 1.65s ease-in-out infinite;
+    }
+
+    .device.is-active::before {
+      content: "";
+      position: absolute;
+      inset: -16px;
+      border-radius: inherit;
+      border: 1px solid rgba(255, 204, 51, .72);
+      animation: energyRing 1.65s ease-out infinite;
+    }
+
+    .device.is-dimmed {
+      opacity: .28;
+      filter: saturate(.45);
+    }
+
+    .device.is-selected {
+      box-shadow:
+        0 0 0 5px var(--accent-soft),
+        0 10px 24px rgba(12, 18, 24, .18);
+      border-color: var(--accent);
+    }
+
+    .circuit-link {
+      position: absolute;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--energized), transparent);
+      transform-origin: 0 50%;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 3;
+    }
+
+    .circuit-link.is-active {
+      opacity: .85;
+      animation: flowLine 1.3s linear infinite;
+    }
+
+    aside {
+      min-height: 0;
+      border-left: 1px solid var(--hairline);
+      background: var(--surface);
+      backdrop-filter: blur(24px) saturate(1.4);
+      -webkit-backdrop-filter: blur(24px) saturate(1.4);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      transition: transform .32s cubic-bezier(.22, 1, .36, 1);
+      z-index: 15;
+    }
+
+    .app.panel-collapsed {
+      grid-template-columns: minmax(0, 1fr) 0;
+    }
+
+    .app.panel-collapsed aside {
+      transform: translateX(100%);
+    }
+
+    #panelBackdrop,
+    #closeMobilePanel {
+      display: none;
+    }
+
+    .panel-head {
+      padding: 18px;
+      border-bottom: 1px solid var(--hairline);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    .panel-scroll {
+      min-height: 0;
+      overflow: auto;
+      padding: 16px 18px 28px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    details {
+      border: 1px solid var(--hairline);
+      background: color-mix(in srgb, var(--surface-solid), transparent 12%);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    summary {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 14px;
+      cursor: pointer;
+      list-style: none;
+      font-weight: 720;
+      font-size: 13px;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    summary::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid var(--muted);
+      border-bottom: 2px solid var(--muted);
+      transform: rotate(45deg) translateY(-2px);
+      transition: transform .18s ease;
+    }
+
+    details[open] summary::after {
+      transform: rotate(225deg) translateY(-2px);
+    }
+
+    .section-body {
+      border-top: 1px solid var(--hairline);
+      padding: 12px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .tool-button {
+      min-width: 0;
+      min-height: 62px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      gap: 5px;
+      padding: 8px 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .tool-button[aria-pressed="true"] {
+      background: var(--accent-soft);
+      border-color: color-mix(in srgb, var(--accent), var(--hairline) 30%);
+      color: var(--accent);
+    }
+
+    .field-grid {
+      display: grid;
+      gap: 9px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 680;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--hairline);
+      background: var(--surface-solid);
+      color: var(--ink);
+      padding: 0 11px;
+    }
+
+    input, select {
+      min-height: 38px;
+    }
+
+    textarea {
+      min-height: 118px;
+      padding: 10px 11px;
+      resize: vertical;
+      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .button-row button {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .danger {
+      color: var(--danger);
+      border-color: color-mix(in srgb, var(--danger), var(--hairline) 58%);
+    }
+
+    .primary {
+      color: white;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .floor-row,
+    .circuit-row,
+    .device-row {
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+      background: var(--surface-solid);
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .floor-row-main,
+    .circuit-main,
+    .device-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .row-title {
+      min-width: 0;
+      font-weight: 720;
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .row-meta {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 5px;
+    }
+
+    .mini {
+      width: 32px;
+      min-width: 32px;
+      min-height: 32px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+    }
+
+    .circuit-row {
+      cursor: pointer;
+      transition: border-color .16s ease, background .16s ease, transform .16s ease;
+    }
+
+    .circuit-row.is-active {
+      background: linear-gradient(135deg, var(--energized-soft), color-mix(in srgb, var(--surface-solid), transparent 4%));
+      border-color: color-mix(in srgb, var(--energized), var(--hairline) 35%);
+    }
+
+    .circuit-number {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--surface-soft);
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .empty {
+      border: 1px dashed var(--hairline);
+      border-radius: 8px;
+      color: var(--muted);
+      padding: 14px;
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      min-height: 17px;
+    }
+
+    .mobile-sheet {
+      display: none;
+    }
+
+    dialog {
+      border: 0;
+      width: min(410px, calc(100vw - 28px));
+      border-radius: 14px;
+      background: var(--surface-solid);
+      color: var(--ink);
+      padding: 0;
+      box-shadow: 0 28px 90px rgba(0, 0, 0, .32);
+    }
+
+    dialog::backdrop {
+      background: rgba(10, 14, 18, .34);
+      backdrop-filter: blur(8px);
+    }
+
+    .dialog-form {
+      padding: 18px;
+      display: grid;
+      gap: 13px;
+    }
+
+    .dialog-form h3 {
+      margin: 0;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    #nfcDialog {
+      width: min(960px, calc(100vw - 40px));
+      max-width: none;
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+    }
+
+    .nfc-dialog {
+      width: auto;
+      padding: 28px;
+      gap: 18px;
+    }
+
+    .nfc-dialog textarea {
+      min-height: 280px;
+    }
+
+    .nfc-summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .nfc-stat {
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+      background: var(--surface-soft);
+      padding: 9px 10px;
+      display: grid;
+      gap: 2px;
+    }
+
+    .nfc-stat strong {
+      font-size: 13px;
+    }
+
+    .nfc-stat span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .nfc-message {
+      min-height: 18px;
+    }
+
+    .nfc-message.is-error {
+      color: var(--danger);
+    }
+
+    .nfc-actions {
+      justify-content: flex-end;
+    }
+
+    .nfc-actions button {
+      flex: 0 1 220px;
+    }
+
+    @media (max-width: 520px) {
+      #nfcDialog {
+        width: calc(100vw - 20px);
+        max-height: calc(100vh - 20px);
+      }
+
+      .nfc-dialog {
+        padding: 18px;
+      }
+
+      .nfc-dialog textarea {
+        min-height: 180px;
+      }
+
+      .nfc-summary {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @keyframes devicePulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.08); }
+    }
+
+    @keyframes energyRing {
+      0% { opacity: .8; transform: scale(.72); }
+      100% { opacity: 0; transform: scale(1.18); }
+    }
+
+    @keyframes flowLine {
+      from { background-position: 0 0; }
+      to { background-position: 58px 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+      }
+    }
+
+    @media (max-width: 980px) {
+      body {
+        overflow: auto;
+        overflow-x: hidden;
+      }
+
+      .app {
+        min-height: 100vh;
+        height: auto;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        height: auto;
+        min-height: var(--toolbar-h);
+        align-items: flex-start;
+        flex-direction: column;
+        padding-top: max(10px, env(safe-area-inset-top));
+        padding-bottom: 12px;
+      }
+
+      .top-actions {
+        width: 100%;
+      }
+
+      .segmented {
+        max-width: none;
+        flex: 1;
+      }
+
+      .map-stage {
+        overflow: visible;
+        padding: 16px 12px calc(min(38vh, 280px) + 42px + env(safe-area-inset-bottom));
+      }
+
+      .floor-stack {
+        width: 95%;
+        min-width: 0;
+      }
+
+      .floor-card + .floor-card {
+        margin-top: -205px;
+      }
+
+      .canvas-wrap {
+        height: min(68vw, 410px);
+        min-height: 320px;
+      }
+
+      aside {
+        display: grid;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(430px, calc(100vw - 24px));
+        min-height: 0;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        border-left: 1px solid var(--hairline);
+        background: var(--surface-solid);
+        transform: translateX(105%);
+        visibility: hidden;
+        box-shadow: -18px 0 60px rgba(0, 0, 0, .28);
+        transition: transform .32s cubic-bezier(.22, 1, .36, 1), visibility 0s linear .32s;
+        z-index: 70;
+      }
+
+      .app.panel-collapsed {
+        grid-template-columns: 1fr;
+      }
+
+      .app.mobile-panel-open aside,
+      .app.mobile-panel-open.panel-collapsed aside {
+        transform: translateX(0);
+        visibility: visible;
+        transition-delay: 0s;
+      }
+
+      #panelBackdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        min-height: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: rgba(7, 10, 14, .48);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .25s ease;
+        z-index: 65;
+      }
+
+      .app.mobile-panel-open #panelBackdrop {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      #closeMobilePanel {
+        display: grid;
+      }
+
+      .panel-head {
+        padding: 14px max(14px, env(safe-area-inset-right)) 14px 16px;
+      }
+
+      .panel-head-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .panel-scroll {
+        padding-bottom: calc(28px + env(safe-area-inset-bottom));
+      }
+
+      .mobile-sheet {
+        display: grid;
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        bottom: max(10px, env(safe-area-inset-bottom));
+        z-index: 40;
+        max-height: min(38vh, 280px);
+        border: 1px solid var(--hairline);
+        border-radius: 16px;
+        background: var(--surface);
+        backdrop-filter: blur(24px) saturate(1.5);
+        -webkit-backdrop-filter: blur(24px) saturate(1.5);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, .22);
+        overflow: hidden;
+      }
+
+      .mobile-head {
+        min-height: 46px;
+        padding: 0 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border-bottom: 1px solid var(--hairline);
+      }
+
+      .mobile-head strong {
+        font-size: 13px;
+      }
+
+      .mobile-content {
+        overflow: auto;
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      #panelToggle {
+        display: inline-grid;
+      }
+    }
+
+    @media (max-width: 520px) {
+      :root {
+        --toolbar-h: 58px;
+      }
+
+      button,
+      input,
+      select {
+        min-height: 44px;
+      }
+
+      input,
+      select,
+      textarea {
+        font-size: 16px;
+      }
+
+      .brand h1 {
+        font-size: 17px;
+      }
+
+      .brand span {
+        max-width: 90vw;
+      }
+
+      .segmented button {
+        min-height: 38px;
+        padding: 0 12px;
+      }
+
+      .icon-button,
+      .mini {
+        width: 44px;
+        min-width: 44px;
+        min-height: 44px;
+      }
+
+      .floor-title {
+        height: 42px;
+      }
+
+      .canvas-wrap {
+        height: clamp(280px, 105vw, 390px);
+        min-height: 280px;
+      }
+
+      .device {
+        width: 34px;
+        height: 34px;
+      }
+
+      .device svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .map-stage {
+        padding-left: 8px;
+        padding-right: 8px;
+      }
+
+      .floor-stack {
+        width: 100%;
+      }
+
+      .floor-card + .floor-card {
+        margin-top: -170px;
+      }
+
+      .floor-row-main {
+        grid-template-columns: 1fr;
+      }
+
+      .floor-row .row-actions {
+        flex-wrap: wrap;
+      }
+
+      .mobile-sheet {
+        left: 6px;
+        right: 6px;
+        bottom: max(6px, env(safe-area-inset-bottom));
+        max-height: min(36vh, 250px);
+      }
+
+      #nfcDialog {
+        width: 100vw;
+        height: 100dvh;
+        max-height: 100dvh;
+        margin: 0;
+        border-radius: 0;
+      }
+
+      .nfc-dialog {
+        min-height: 100%;
+        align-content: start;
+        padding: max(18px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+      }
+
+      .nfc-dialog textarea {
+        min-height: 160px;
+      }
+
+      .nfc-actions {
+        position: sticky;
+        bottom: calc(-1 * max(16px, env(safe-area-inset-bottom)));
+        margin: 0 -16px;
+        padding: 12px 16px max(16px, env(safe-area-inset-bottom));
+        background: var(--surface-solid);
+        border-top: 1px solid var(--hairline);
+      }
+
+      .nfc-actions button {
+        flex: 1 1 0;
+      }
+    }
+
+    .app[data-tool="wall"] .canvas-wrap {
+      touch-action: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>Circuit Map</h1>
+        <span id="subtitle">Loading saved map...</span>
+      </div>
+      <div class="top-actions">
+        <div class="segmented" id="floorTabs" aria-label="Visible floors"></div>
+        <button type="button" class="icon-button" id="clearSelection" title="Clear selection" aria-label="Clear selection">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button type="button" class="icon-button" id="panelToggle" title="Hide panel" aria-label="Hide panel" aria-controls="sidePanel" aria-expanded="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18 9 12l6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="map-stage" id="mapStage">
+      <section class="floor-stack" id="floorStack" aria-label="Floor plans"></section>
+    </main>
+
+    <aside id="sidePanel">
+      <div class="panel-head">
+        <h2>Circuit Panel</h2>
+        <div class="panel-head-actions">
+          <button type="button" class="icon-button primary" id="addCircuit" title="Add circuit" aria-label="Add circuit">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+          <button type="button" class="icon-button" id="closeMobilePanel" title="Close controls" aria-label="Close controls">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="panel-scroll">
+        <details open>
+          <summary>Circuits</summary>
+          <div class="section-body">
+            <div class="list" id="circuitList"></div>
+            <p class="hint">Selecting a circuit energizes every assigned outlet and light.</p>
+          </div>
+        </details>
+
+        <details open class="tool-only">
+          <summary>Tools</summary>
+          <div class="section-body">
+            <div class="tool-grid" id="toolGrid">
+              <button type="button" class="tool-button" data-tool="inspect" aria-pressed="true" title="Inspect">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4a7 7 0 1 0 4.95 11.95L20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M11 8v6M8 11h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Inspect
+              </button>
+              <button type="button" class="tool-button" data-tool="outlet" aria-pressed="false" title="Add outlet">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10.2" cy="9" r="1.2" fill="currentColor"/><circle cx="13.8" cy="9" r="1.2" fill="currentColor"/><path d="M10 15h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Outlet
+              </button>
+              <button type="button" class="tool-button" data-tool="light" aria-pressed="false" title="Add light">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Light
+              </button>
+              <button type="button" class="tool-button" data-tool="wall" aria-pressed="false" title="Add wall segment">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17 17 4l3 3L7 20z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m14 7 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Wall
+              </button>
+            </div>
+            <button type="button" id="deleteWall" class="danger" disabled>Delete Selected Wall</button>
+            <p class="hint">Choose a tool, then tap the plan. Wall mode draws a segment by dragging.</p>
+          </div>
+        </details>
+
+        <details open class="tool-only">
+          <summary>Floors</summary>
+          <div class="section-body">
+            <button type="button" class="primary" id="addFloor">Add Floor</button>
+            <div class="list" id="floorList"></div>
+          </div>
+        </details>
+
+        <details class="tool-only">
+          <summary>Selected Device</summary>
+          <div class="section-body" id="deviceInspector"></div>
+        </details>
+
+        <details>
+          <summary>Devices</summary>
+          <div class="section-body">
+            <div class="list" id="deviceList"></div>
+          </div>
+        </details>
+
+        <details class="tool-only">
+          <summary>Data</summary>
+          <div class="section-body">
+            <div class="button-row">
+              <button type="button" id="exportJson">Export JSON</button>
+              <button type="button" id="createNfcLink" class="primary">Create NFC URL</button>
+              <button type="button" id="resetDemo" class="danger">Reset</button>
+            </div>
+            <p class="hint" id="status"></p>
+          </div>
+        </details>
+      </div>
+    </aside>
+
+    <button type="button" id="panelBackdrop" aria-label="Close circuit controls" tabindex="-1"></button>
+
+    <section class="mobile-sheet" aria-label="Circuit information">
+      <div class="mobile-head">
+        <strong id="mobileTitle">Circuits</strong>
+        <button type="button" class="mini" id="mobileClear" title="Clear" aria-label="Clear selection">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="mobile-content" id="mobileContent"></div>
+    </section>
+  </div>
+
+  <dialog id="deviceDialog">
+    <form method="dialog" class="dialog-form" id="deviceForm">
+      <h3 id="deviceDialogTitle">Device</h3>
+      <div class="field-grid">
+        <label>
+          Type
+          <select id="deviceType">
+            <option value="outlet">Outlet</option>
+            <option value="light">Light</option>
+          </select>
+        </label>
+        <label>
+          Circuit
+          <select id="deviceCircuit"></select>
+        </label>
+        <label>
+          Label
+          <input id="deviceLabel" maxlength="70" placeholder="Room or note">
+        </label>
+      </div>
+      <div class="button-row">
+        <button type="button" id="deleteDevice" class="danger">Delete</button>
+        <button type="button" id="cancelDevice">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="nfcDialog">
+    <form method="dialog" class="dialog-form nfc-dialog" id="nfcForm">
+      <h3>Create NFC URL</h3>
+      <p class="hint">The generated URL contains this map and circuit data. Copy it into an NFC-writing app as a URL record.</p>
+      <label>
+        Hosted website URL
+        <input id="nfcBaseUrl" type="url" inputmode="url" placeholder="https://username.github.io/circuit-map/" autocomplete="url">
+      </label>
+      <div class="button-row">
+        <button type="button" id="generateNfcUrl">Generate Full URL</button>
+      </div>
+      <label>
+        Full NFC URL
+        <textarea id="nfcUrl" readonly spellcheck="false" aria-label="Full URL to write to the NFC tag"></textarea>
+      </label>
+      <div class="nfc-summary" aria-live="polite">
+        <div class="nfc-stat"><strong id="nfcUrlSize">—</strong><span>URL bytes</span></div>
+        <div class="nfc-stat"><strong id="nfcMapSize">—</strong><span>Map JSON bytes</span></div>
+        <div class="nfc-stat"><strong id="nfcFit">—</strong><span>Tag guidance</span></div>
+      </div>
+      <p class="hint">Use an NTAG216 (888-byte user memory) for smaller maps. Custom tracing images are intentionally omitted from NFC data.</p>
+      <p class="hint nfc-message" id="nfcMessage" role="status"></p>
+      <div class="button-row nfc-actions">
+        <button type="button" id="copyNfcUrl" class="primary" disabled>Copy Full URL</button>
+        <button type="button" id="closeNfcDialog">Close</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script id="defaultMap" type="application/json">
+    {
+      "version": 2,
+      "floors": [
+        {
+          "id": "upper",
+          "name": "Upper Floor",
+          "baseKey": "upper",
+          "order": 0,
+          "planImage": null,
+          "walls": []
+        },
+        {
+          "id": "main",
+          "name": "Main Floor",
+          "baseKey": "main",
+          "order": 1,
+          "planImage": null,
+          "walls": []
+        },
+        {
+          "id": "basement",
+          "name": "Basement",
+          "baseKey": "basement",
+          "order": 2,
+          "planImage": null,
+          "walls": []
+        }
+      ],
+      "circuits": [
+        { "id": "circuit-1", "number": 1, "name": "Circuit 1" },
+        { "id": "circuit_ms6y85c6_zie7nn", "number": 2, "name": "Circuit 2" }
+      ],
+      "devices": [
+        {
+          "id": "device_ms6y4toa_9tyy61",
+          "floorId": "basement",
+          "circuitId": "circuit-1",
+          "type": "outlet",
+          "label": "2",
+          "x": 45.891,
+          "y": 70.33
+        },
+        {
+          "id": "device_ms6y60ds_cjcqey",
+          "floorId": "basement",
+          "circuitId": "circuit-1",
+          "type": "light",
+          "label": "",
+          "x": 74.854,
+          "y": 30.423
+        }
+      ],
+      "updatedAt": "2026-07-30T22:48:29.333Z"
+    }
+  </script>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = 'circuit-map-polished-v2';
+      const VIEW_ALL = 'all';
+      const SVG_W = 780;
+      const SVG_H = 540;
+      const basePlans = {
+        basement: {
+          walls: [
+            'M80 187 L246 187 L246 60 L517 60 L517 307 L677 307 L677 500 L246 500 L246 322 L80 322 Z',
+            'M401 60 L401 151',
+            'M517 151 L401 151 L401 221',
+            'M401 221 L517 221 L517 307 L401 307 L401 221',
+            'M504 361 L504 500',
+            'M590 368 L590 500',
+            'M590 385 L677 385',
+            'M590 408 L677 408',
+            'M590 431 L677 431',
+            'M590 454 L677 454',
+            'M590 477 L677 477',
+            'M504 350 L517 350',
+            'M579 350 L590 350'
+          ],
+          labels: [
+            ['Bar', 323, 110], ['Bathroom', 459, 110], ['Utility Closet', 459, 258],
+            ['Office', 137, 258], ['Movie Area', 365, 423], ['Under', 548, 398],
+            ['Stairs', 548, 413], ['Closet', 548, 428]
+          ]
+        },
+        main: {
+          walls: [
+            'M69 215 L221 215 L221 253 L284 301 L347 301 L347 277 L301 277 L255 242 L255 215 L344 215',
+            'M69 215 L69 339 L192 339 L192 500 L452 500',
+            'M192 339 L372 339 L456 381',
+            'M220 99 L328 99 L328 149 L366 149 L366 137 L358 137 L358 99 L452 99',
+            'M328 187 L404 187 L404 215 L452 215',
+            'M452 60 L715 60 L715 301 L604 301 L604 378 L452 378',
+            'M452 60 L452 215',
+            'M358 99 L358 137 L366 137 L366 151 L358 151',
+            'M404 215 L404 259 L386 259 L386 301 L404 301 L404 339 L452 339',
+            'M344 215 L255 215 L255 242 L301 277',
+            'M255 242 L221 242 L221 215',
+            'M452 257 L484 257 L484 301 L452 301',
+            'M484 378 L604 378 L604 500',
+            'M484 402 L604 402',
+            'M484 426 L604 426',
+            'M484 450 L604 450',
+            'M484 474 L604 474',
+            'M484 496 L604 496'
+          ],
+          labels: [
+            ['Dining Room', 130, 282], ['Laundry Room', 274, 140], ['Bathroom', 380, 120],
+            ['Kitchen', 303, 258], ['Living Room', 337, 410], ['Garage', 580, 185]
+          ]
+        },
+        upper: {
+          walls: [
+            'M54 187 L54 322 L205 322 L205 500 L520 500 L520 378 L700 378 L700 60 L495 60',
+            'M235 60 L445 60 L445 194 L482 194 L482 60',
+            'M235 60 L235 187 L375 187 L440 252 L440 292',
+            'M54 187 L226 187 L226 256 L235 256 L294 256 L294 267 L399 267 L440 292 L393 326 L295 326 L295 292',
+            'M495 60 L700 60 L700 213 L520 213',
+            'M700 322 L520 322',
+            'M520 322 L520 378',
+            'M235 337 L295 337 L295 326',
+            'M520 256 L520 322 L700 322',
+            'M520 346 L520 500',
+            'M520 367 L614 367 L614 452',
+            'M520 384 L614 384',
+            'M520 401 L614 401',
+            'M520 418 L614 418',
+            'M520 435 L614 435',
+            'M520 452 L614 452'
+          ],
+          labels: [
+            ['Bathroom', 125, 276], ['Bedroom 1', 335, 136], ['Bedroom 2', 585, 136],
+            ['Closet', 338, 294], ['Bathroom', 594, 274], ['Main Bedroom', 345, 425]
+          ]
+        }
+      };
+
+      const state = {
+        floors: [],
+        circuits: [],
+        devices: [],
+        selectedCircuitId: null,
+        selectedDeviceId: null,
+        selectedWallId: null,
+        view: VIEW_ALL,
+        tool: 'inspect'
+      };
+
+      const els = {
+        app: document.querySelector('#app'),
+        subtitle: document.querySelector('#subtitle'),
+        floorTabs: document.querySelector('#floorTabs'),
+        floorStack: document.querySelector('#floorStack'),
+        circuitList: document.querySelector('#circuitList'),
+        floorList: document.querySelector('#floorList'),
+        deviceList: document.querySelector('#deviceList'),
+        deviceInspector: document.querySelector('#deviceInspector'),
+        toolGrid: document.querySelector('#toolGrid'),
+        deleteWall: document.querySelector('#deleteWall'),
+        status: document.querySelector('#status'),
+        mobileTitle: document.querySelector('#mobileTitle'),
+        mobileContent: document.querySelector('#mobileContent'),
+        dialog: document.querySelector('#deviceDialog'),
+        dialogTitle: document.querySelector('#deviceDialogTitle'),
+        deviceForm: document.querySelector('#deviceForm'),
+        deviceType: document.querySelector('#deviceType'),
+        deviceCircuit: document.querySelector('#deviceCircuit'),
+        deviceLabel: document.querySelector('#deviceLabel'),
+        deleteDevice: document.querySelector('#deleteDevice'),
+        nfcDialog: document.querySelector('#nfcDialog'),
+        nfcBaseUrl: document.querySelector('#nfcBaseUrl'),
+        nfcUrl: document.querySelector('#nfcUrl'),
+        nfcUrlSize: document.querySelector('#nfcUrlSize'),
+        nfcMapSize: document.querySelector('#nfcMapSize'),
+        nfcFit: document.querySelector('#nfcFit'),
+        nfcMessage: document.querySelector('#nfcMessage')
+      };
+
+      let pendingDevice = null;
+      let activeWall = null;
+      let nfcGeneration = 0;
+      let compactMode = null;
+
+      function uid(prefix) {
+        return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      }
+
+      async function boot() {
+        const payload = await loadInitialMap();
+        hydrate(payload);
+        render();
+        bindEvents();
+        syncResponsiveLayout();
+      }
+
+      async function loadInitialMap() {
+        try {
+          const taggedMap = await mapFromLocation();
+          if (taggedMap) {
+            setStatus('Loaded circuit map from the NFC link.');
+            return taggedMap;
+          }
+        } catch (error) {
+          console.warn('Could not read map data from the URL.', error);
+          setStatus('The NFC link data was invalid; trying locally saved data.');
+        }
+
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            setStatus('Loaded autosaved circuit map.');
+            return parsed;
+          } catch {
+            setStatus('Autosaved map was unreadable; loaded embedded default.');
+          }
+        }
+
+        setStatus('Loaded embedded circuit map.');
+        return JSON.parse(document.querySelector('#defaultMap').textContent);
+      }
+
+      async function mapFromLocation() {
+        const value = new URLSearchParams(location.hash.slice(1)).get('map');
+        if (!value) return null;
+        if (value.length > 100000) throw new Error('The encoded map is too large.');
+
+        const separator = value.indexOf('.');
+        if (separator < 1) throw new Error('The encoded map format is missing.');
+        const format = value.slice(0, separator);
+        const bytes = base64UrlToBytes(value.slice(separator + 1));
+        let jsonBytes;
+
+        if (format === 'g') {
+          if (!('DecompressionStream' in window)) {
+            throw new Error('This browser cannot decompress NFC map links.');
+          }
+          jsonBytes = await transformBytes(bytes, new DecompressionStream('gzip'));
+        } else if (format === 'j') {
+          jsonBytes = bytes;
+        } else {
+          throw new Error('The encoded map format is not supported.');
+        }
+
+        if (jsonBytes.length > 2000000) throw new Error('The decoded map is too large.');
+        const payload = JSON.parse(new TextDecoder().decode(jsonBytes));
+        if (!payload || typeof payload !== 'object' || !Array.isArray(payload.floors) || !Array.isArray(payload.circuits)) {
+          throw new Error('The decoded data is not a circuit map.');
+        }
+        return payload;
+      }
+
+      function hydrate(payload) {
+        const floors = Array.isArray(payload.floors) ? payload.floors : [];
+        const circuits = Array.isArray(payload.circuits) ? payload.circuits : [];
+        const devices = Array.isArray(payload.devices) ? payload.devices : [];
+
+        state.floors = floors.map((floor, index) => ({
+          id: String(floor.id || uid('floor')),
+          name: String(floor.name || `Floor ${index + 1}`),
+          baseKey: basePlans[floor.baseKey] ? floor.baseKey : 'blank',
+          order: Number.isFinite(Number(floor.order)) ? Number(floor.order) : index,
+          planImage: normalizePlanImage(floor.planImage),
+          walls: normalizeWalls(floor.walls || [])
+        })).sort((a, b) => a.order - b.order);
+
+        if (!state.floors.length) {
+          state.floors = [{ id: uid('floor'), name: 'Main Floor', baseKey: 'blank', order: 0, planImage: null, walls: [] }];
+        }
+
+        state.circuits = circuits.map((circuit, index) => ({
+          id: String(circuit.id || uid('circuit')),
+          number: Math.max(1, Number(circuit.number || index + 1)),
+          name: String(circuit.name || `Circuit ${circuit.number || index + 1}`)
+        })).sort((a, b) => a.number - b.number);
+
+        if (!state.circuits.length) {
+          state.circuits = [{ id: uid('circuit'), number: 1, name: 'Circuit 1' }];
+        }
+
+        const floorIds = new Set(state.floors.map(floor => floor.id));
+        const circuitIds = new Set(state.circuits.map(circuit => circuit.id));
+        state.devices = devices.map(device => ({
+          id: String(device.id || uid('device')),
+          floorId: floorIds.has(device.floorId) ? device.floorId : state.floors[0].id,
+          circuitId: circuitIds.has(device.circuitId) ? device.circuitId : state.circuits[0].id,
+          type: device.type === 'light' ? 'light' : 'outlet',
+          label: String(device.label || ''),
+          x: clamp(Number(device.x ?? 50), 0, 100),
+          y: clamp(Number(device.y ?? 50), 0, 100)
+        })).filter(device => Number.isFinite(device.x) && Number.isFinite(device.y));
+
+        state.view = VIEW_ALL;
+      }
+
+      function normalizeWalls(walls) {
+        return walls.map(wall => ({
+          id: String(wall.id || uid('wall')),
+          x1: clamp(Number(wall.x1), 0, SVG_W),
+          y1: clamp(Number(wall.y1), 0, SVG_H),
+          x2: clamp(Number(wall.x2), 0, SVG_W),
+          y2: clamp(Number(wall.y2), 0, SVG_H)
+        })).filter(wall => [wall.x1, wall.y1, wall.x2, wall.y2].every(Number.isFinite));
+      }
+
+      function normalizePlanImage(planImage) {
+        if (!planImage || typeof planImage !== 'object') return null;
+        const src = String(planImage.src || '');
+        if (!src.startsWith('data:image/')) return null;
+        return {
+          name: String(planImage.name || 'Tracing image'),
+          type: String(planImage.type || 'image/*'),
+          src
+        };
+      }
+
+      function exportPayload() {
+        return {
+          version: 2,
+          updatedAt: new Date().toISOString(),
+          floors: state.floors.map((floor, order) => ({
+            id: floor.id,
+            name: floor.name,
+            baseKey: floor.baseKey,
+            order,
+            planImage: floor.planImage ? { ...floor.planImage } : null,
+            walls: floor.walls.map(wall => ({ ...wall }))
+          })),
+          circuits: state.circuits.map(circuit => ({ ...circuit })),
+          devices: state.devices.map(device => ({ ...device }))
+        };
+      }
+
+      function nfcPayload() {
+        const payload = exportPayload();
+        delete payload.updatedAt;
+        payload.floors = payload.floors.map(floor => ({ ...floor, planImage: null }));
+        return payload;
+      }
+
+      async function transformBytes(bytes, transform) {
+        const stream = new Blob([bytes]).stream().pipeThrough(transform);
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+      }
+
+      function bytesToBase64Url(bytes) {
+        let binary = '';
+        const chunkSize = 0x8000;
+        for (let index = 0; index < bytes.length; index += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+        }
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+      }
+
+      function base64UrlToBytes(value) {
+        if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error('The encoded map contains invalid characters.');
+        const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - value.length % 4) % 4);
+        const binary = atob(padded);
+        return Uint8Array.from(binary, char => char.charCodeAt(0));
+      }
+
+      function defaultNfcBaseUrl() {
+        const saved = localStorage.getItem(`${STORAGE_KEY}-nfc-base-url`);
+        if (saved) return saved;
+        if (location.protocol === 'http:' || location.protocol === 'https:') {
+          const url = new URL(location.href);
+          url.search = '';
+          url.hash = '';
+          return url.href;
+        }
+        return '';
+      }
+
+      async function createNfcUrl() {
+        const generation = ++nfcGeneration;
+        const generateButton = document.querySelector('#generateNfcUrl');
+        const copyButton = document.querySelector('#copyNfcUrl');
+        generateButton.disabled = true;
+        copyButton.disabled = true;
+        setNfcMessage('Creating compressed NFC URL…');
+
+        try {
+          const base = new URL(els.nfcBaseUrl.value.trim());
+          if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password) {
+            throw new Error('Enter a public HTTP or HTTPS website URL.');
+          }
+          base.search = '';
+          base.hash = '';
+
+          const jsonBytes = new TextEncoder().encode(JSON.stringify(nfcPayload()));
+          let format = 'j';
+          let dataBytes = jsonBytes;
+          if ('CompressionStream' in window) {
+            dataBytes = await transformBytes(jsonBytes, new CompressionStream('gzip'));
+            format = 'g';
+          }
+
+          const fragment = `map=${format}.${bytesToBase64Url(dataBytes)}`;
+          base.hash = fragment;
+          const fullUrl = base.href;
+          const urlBytes = new TextEncoder().encode(fullUrl).length;
+          if (generation !== nfcGeneration) return;
+
+          els.nfcUrl.value = fullUrl;
+          els.nfcUrlSize.textContent = urlBytes.toLocaleString();
+          els.nfcMapSize.textContent = jsonBytes.length.toLocaleString();
+          els.nfcFit.textContent = urlBytes <= 480
+            ? 'NTAG215 or 216'
+            : urlBytes <= 870
+              ? 'NTAG216'
+              : 'Too large for NTAG216';
+          copyButton.disabled = false;
+          localStorage.setItem(`${STORAGE_KEY}-nfc-base-url`, base.href);
+
+          const imageCount = state.floors.filter(floor => floor.planImage).length;
+          const suffix = imageCount
+            ? ` ${imageCount} tracing image${imageCount === 1 ? ' was' : 's were'} omitted.`
+            : '';
+          setNfcMessage(`${format === 'g' ? 'Compressed' : 'Uncompressed'} NFC URL ready.${suffix}`);
+        } catch (error) {
+          if (generation !== nfcGeneration) return;
+          els.nfcUrl.value = '';
+          els.nfcUrlSize.textContent = '—';
+          els.nfcMapSize.textContent = '—';
+          els.nfcFit.textContent = '—';
+          setNfcMessage(error.message || 'Could not create the NFC URL.', true);
+        } finally {
+          if (generation === nfcGeneration) generateButton.disabled = false;
+        }
+      }
+
+      function invalidateNfcUrl() {
+        ++nfcGeneration;
+        els.nfcUrl.value = '';
+        els.nfcUrlSize.textContent = '—';
+        els.nfcMapSize.textContent = '—';
+        els.nfcFit.textContent = '—';
+        document.querySelector('#copyNfcUrl').disabled = true;
+        setNfcMessage('Generate the full URL after entering the hosted website address.');
+      }
+
+      function setNfcMessage(message, isError = false) {
+        els.nfcMessage.textContent = message;
+        els.nfcMessage.classList.toggle('is-error', isError);
+      }
+
+      async function openNfcDialog() {
+        els.nfcBaseUrl.value = defaultNfcBaseUrl();
+        els.nfcDialog.showModal();
+        if (els.nfcBaseUrl.value) await createNfcUrl();
+        else setNfcMessage('Enter the deployed GitHub Pages URL to create the NFC content.');
+      }
+
+      async function copyNfcUrl() {
+        if (!els.nfcUrl.value) return setNfcMessage('Create a valid NFC URL first.', true);
+        try {
+          if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(els.nfcUrl.value);
+          } else {
+            els.nfcUrl.select();
+            if (!document.execCommand('copy')) throw new Error('Copy was not available.');
+          }
+          setNfcMessage('Full NFC URL copied. Paste it into any NFC writer app as a URL record.');
+        } catch (error) {
+          setNfcMessage('Copy failed. Select the full URL and copy it manually.', true);
+        }
+      }
+
+      function persist() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(exportPayload()));
+        setStatus(`Autosaved ${state.devices.length} device${state.devices.length === 1 ? '' : 's'} and ${state.circuits.length} circuit${state.circuits.length === 1 ? '' : 's'}.`);
+      }
+
+      function render() {
+        renderFloorTabs();
+        renderFloors();
+        renderCircuits();
+        renderFloorTools();
+        renderDevices();
+        renderInspector();
+        renderMobile();
+        renderToolState();
+        updateSubtitle();
+      }
+
+      function renderFloorTabs() {
+        const tabs = [{ id: VIEW_ALL, name: 'All' }, ...state.floors];
+        els.floorTabs.innerHTML = tabs.map(tab => `
+          <button type="button" data-view="${escapeAttr(tab.id)}" aria-pressed="${String(state.view === tab.id)}">${escapeHtml(tab.name)}</button>
+        `).join('');
+      }
+
+      function renderFloors() {
+        const single = state.view !== VIEW_ALL;
+        els.floorStack.classList.toggle('single', single);
+        els.floorStack.innerHTML = state.floors.map(floor => floorCardHtml(floor)).join('');
+        drawCircuitLinks();
+      }
+
+      function floorCardHtml(floor) {
+        const hidden = state.view !== VIEW_ALL && state.view !== floor.id;
+        const base = basePlans[floor.baseKey] || { walls: [], labels: [] };
+        const baseWalls = base.walls.map(path => `<path class="wall-path" d="${escapeAttr(path)}"></path>`).join('');
+        const labels = base.labels.map(([text, x, y]) => `<text class="room-label" x="${x}" y="${y}">${escapeHtml(text)}</text>`).join('');
+        const userWalls = floor.walls.map(wall => `
+          <line class="user-wall ${wall.id === state.selectedWallId ? 'is-selected' : ''}" data-wall-id="${escapeAttr(wall.id)}" x1="${wall.x1}" y1="${wall.y1}" x2="${wall.x2}" y2="${wall.y2}"></line>
+        `).join('');
+        const devices = state.devices.filter(device => device.floorId === floor.id).map(deviceButtonHtml).join('');
+        const image = floor.planImage
+          ? `<img class="floor-plan-image" src="${escapeAttr(floor.planImage.src)}" alt="${escapeAttr(floor.planImage.name || `${floor.name} tracing image`)}">`
+          : '';
+
+        return `
+          <article class="floor-card ${hidden ? 'hidden' : ''}" data-floor-id="${escapeAttr(floor.id)}">
+            <div class="floor-title">${escapeHtml(floor.name)}</div>
+            <div class="canvas-wrap" data-floor-id="${escapeAttr(floor.id)}">
+              ${image}
+              <svg class="plan" viewBox="0 0 ${SVG_W} ${SVG_H}" aria-label="${escapeAttr(floor.name)} floor plan">
+                <rect class="click-layer" width="${SVG_W}" height="${SVG_H}" data-floor-id="${escapeAttr(floor.id)}"></rect>
+                <g class="floor-geometry">${baseWalls}${labels}</g>
+                <g class="user-wall-layer">${userWalls}</g>
+              </svg>
+              ${devices}
+            </div>
+          </article>
+        `;
+      }
+
+      function deviceButtonHtml(device) {
+        const circuit = circuitById(device.circuitId);
+        const active = state.selectedCircuitId && device.circuitId === state.selectedCircuitId;
+        const dimmed = state.selectedCircuitId && !active;
+        const selected = state.selectedDeviceId === device.id;
+        return `
+          <button type="button" class="device ${device.type} ${active ? 'is-active' : ''} ${dimmed ? 'is-dimmed' : ''} ${selected ? 'is-selected' : ''}"
+            data-device-id="${escapeAttr(device.id)}" style="--x:${device.x}%;--y:${device.y}%"
+            title="${escapeAttr(deviceLabel(device))}">
+            ${device.type === 'light' ? lightIcon() : outletIcon()}
+            <span class="badge">${escapeHtml(circuit ? String(circuit.number) : '?')}</span>
+          </button>
+        `;
+      }
+
+      function renderCircuits() {
+        if (!state.circuits.length) {
+          els.circuitList.innerHTML = '<div class="empty">No circuits yet.</div>';
+          return;
+        }
+        els.circuitList.innerHTML = state.circuits.map(circuit => {
+          const count = state.devices.filter(device => device.circuitId === circuit.id).length;
+          const active = state.selectedCircuitId === circuit.id;
+          return `
+            <div class="circuit-row ${active ? 'is-active' : ''}" data-circuit-id="${escapeAttr(circuit.id)}" role="button" tabindex="0">
+              <div class="circuit-main">
+                <div style="display:flex; gap:10px; align-items:center; min-width:0;">
+                  <span class="circuit-number">${escapeHtml(String(circuit.number))}</span>
+                  <div style="min-width:0;">
+                    <div class="row-title">${escapeHtml(circuit.name)}</div>
+                    <div class="row-meta">${count} device${count === 1 ? '' : 's'}</div>
+                  </div>
+                </div>
+                <div class="row-actions">
+                  <button type="button" class="mini" data-edit-circuit="${escapeAttr(circuit.id)}" title="Rename circuit" aria-label="Rename circuit">${editIcon()}</button>
+                  <button type="button" class="mini danger" data-delete-circuit="${escapeAttr(circuit.id)}" title="Delete circuit" aria-label="Delete circuit">${trashIcon()}</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function renderFloorTools() {
+        els.floorList.innerHTML = state.floors.map((floor, index) => `
+          <div class="floor-row" data-floor-row="${escapeAttr(floor.id)}">
+            <div class="floor-row-main">
+              <div>
+                <div class="row-title">${escapeHtml(floor.name)}</div>
+                <div class="row-meta">${state.devices.filter(device => device.floorId === floor.id).length} device${state.devices.filter(device => device.floorId === floor.id).length === 1 ? '' : 's'}</div>
+              </div>
+              <div class="row-actions">
+                <button type="button" class="mini" data-move-floor="${escapeAttr(floor.id)}" data-dir="-1" ${index === 0 ? 'disabled' : ''} title="Move up" aria-label="Move up">${upIcon()}</button>
+                <button type="button" class="mini" data-move-floor="${escapeAttr(floor.id)}" data-dir="1" ${index === state.floors.length - 1 ? 'disabled' : ''} title="Move down" aria-label="Move down">${downIcon()}</button>
+                <button type="button" class="mini danger" data-delete-floor-image="${escapeAttr(floor.id)}" ${floor.planImage ? '' : 'disabled'} title="Delete tracing image" aria-label="Delete tracing image">${imageOffIcon()}</button>
+                <button type="button" class="mini" data-rename-floor="${escapeAttr(floor.id)}" title="Rename floor" aria-label="Rename floor">${editIcon()}</button>
+                <button type="button" class="mini danger" data-delete-floor="${escapeAttr(floor.id)}" title="Delete floor" aria-label="Delete floor">${trashIcon()}</button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      function renderDevices() {
+        if (!state.devices.length) {
+          els.deviceList.innerHTML = '<div class="empty">No outlets or lights have been placed.</div>';
+          return;
+        }
+        els.deviceList.innerHTML = state.devices.map(device => {
+          const floor = floorById(device.floorId);
+          const circuit = circuitById(device.circuitId);
+          return `
+            <div class="device-row" data-device-row="${escapeAttr(device.id)}">
+              <div class="device-main">
+                <div>
+                  <div class="row-title">${escapeHtml(deviceLabel(device))}</div>
+                  <div class="row-meta">${escapeHtml(floor ? floor.name : 'Unknown floor')} · Circuit ${escapeHtml(circuit ? String(circuit.number) : '?')}</div>
+                </div>
+                <div class="row-actions">
+                  <button type="button" class="mini" data-edit-device="${escapeAttr(device.id)}" title="Edit device" aria-label="Edit device">${editIcon()}</button>
+                  <button type="button" class="mini danger" data-delete-device="${escapeAttr(device.id)}" title="Delete device" aria-label="Delete device">${trashIcon()}</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function renderInspector() {
+        const device = deviceById(state.selectedDeviceId);
+        const circuit = device ? circuitById(device.circuitId) : null;
+        const floor = device ? floorById(device.floorId) : null;
+        if (!device) {
+          els.deviceInspector.innerHTML = '<p class="hint">Select an outlet or light to see and edit its circuit.</p>';
+          return;
+        }
+        els.deviceInspector.innerHTML = `
+          <div class="device-row">
+            <div class="row-title">${escapeHtml(deviceLabel(device))}</div>
+            <div class="row-meta">${escapeHtml(floor.name)} · ${titleCase(device.type)} · Circuit ${escapeHtml(String(circuit.number))}</div>
+          </div>
+          <button type="button" class="primary" data-edit-device="${escapeAttr(device.id)}">Edit Device</button>
+        `;
+      }
+
+      function renderMobile() {
+        const selectedDevice = deviceById(state.selectedDeviceId);
+        if (selectedDevice) {
+          const circuit = circuitById(selectedDevice.circuitId);
+          const floor = floorById(selectedDevice.floorId);
+          els.mobileTitle.textContent = deviceLabel(selectedDevice);
+          els.mobileContent.innerHTML = `
+            <div class="device-row">
+              <div class="row-title">Circuit ${escapeHtml(String(circuit.number))}</div>
+              <div class="row-meta">${escapeHtml(circuit.name)} · ${escapeHtml(floor.name)}</div>
+            </div>
+            <button type="button" class="primary" data-edit-device="${escapeAttr(selectedDevice.id)}">Edit Device</button>
+            ${mobileCircuitRows()}
+          `;
+          return;
+        }
+
+        els.mobileTitle.textContent = state.selectedCircuitId ? circuitById(state.selectedCircuitId).name : 'Circuits';
+        els.mobileContent.innerHTML = mobileCircuitRows();
+      }
+
+      function mobileCircuitRows() {
+        return state.circuits.map(circuit => {
+          const count = state.devices.filter(device => device.circuitId === circuit.id).length;
+          return `
+            <div class="circuit-row ${state.selectedCircuitId === circuit.id ? 'is-active' : ''}" data-circuit-id="${escapeAttr(circuit.id)}" role="button" tabindex="0">
+              <div class="circuit-main">
+                <div style="display:flex; gap:10px; align-items:center; min-width:0;">
+                  <span class="circuit-number">${escapeHtml(String(circuit.number))}</span>
+                  <div style="min-width:0;">
+                    <div class="row-title">${escapeHtml(circuit.name)}</div>
+                    <div class="row-meta">${count} device${count === 1 ? '' : 's'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function renderToolState() {
+        els.app.dataset.tool = state.tool;
+        document.querySelectorAll('[data-tool]').forEach(button => {
+          button.setAttribute('aria-pressed', String(button.dataset.tool === state.tool));
+        });
+        els.deleteWall.disabled = !state.selectedWallId;
+      }
+
+      function updateSubtitle() {
+        const circuit = state.selectedCircuitId ? circuitById(state.selectedCircuitId) : null;
+        if (circuit) {
+          const devices = state.devices.filter(device => device.circuitId === circuit.id);
+          const outlets = devices.filter(device => device.type === 'outlet').length;
+          const lights = devices.filter(device => device.type === 'light').length;
+          els.subtitle.textContent = `Circuit ${circuit.number}: ${outlets} outlet${outlets === 1 ? '' : 's'} and ${lights} light${lights === 1 ? '' : 's'} highlighted`;
+        } else {
+          els.subtitle.textContent = `${state.floors.length} floor${state.floors.length === 1 ? '' : 's'} · ${state.circuits.length} circuit${state.circuits.length === 1 ? '' : 's'} · ${state.devices.length} device${state.devices.length === 1 ? '' : 's'}`;
+        }
+      }
+
+      function drawCircuitLinks() {
+        requestAnimationFrame(() => {
+          document.querySelectorAll('.circuit-link').forEach(link => link.remove());
+          if (!state.selectedCircuitId) return;
+          state.floors.forEach(floor => {
+            const wrap = document.querySelector(`.canvas-wrap[data-floor-id="${cssEscape(floor.id)}"]`);
+            if (!wrap || wrap.closest('.floor-card').classList.contains('hidden')) return;
+            const devices = state.devices.filter(device => device.floorId === floor.id && device.circuitId === state.selectedCircuitId);
+            if (devices.length < 2) return;
+            const origin = devices[0];
+            devices.slice(1).forEach(device => {
+              const link = document.createElement('span');
+              link.className = 'circuit-link is-active';
+              const rect = wrap.getBoundingClientRect();
+              const x1 = rect.width * origin.x / 100;
+              const y1 = rect.height * origin.y / 100;
+              const x2 = rect.width * device.x / 100;
+              const y2 = rect.height * device.y / 100;
+              const length = Math.hypot(x2 - x1, y2 - y1);
+              const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+              link.style.left = `${x1}px`;
+              link.style.top = `${y1}px`;
+              link.style.width = `${length}px`;
+              link.style.transform = `rotate(${angle}deg)`;
+              wrap.appendChild(link);
+            });
+          });
+        });
+      }
+
+      function bindEvents() {
+        document.addEventListener('click', event => {
+          const floorTab = event.target.closest('[data-view]');
+          if (floorTab) {
+            state.view = floorTab.dataset.view;
+            state.selectedWallId = null;
+            render();
+            return;
+          }
+
+          const toolButton = event.target.closest('[data-tool]');
+          if (toolButton) {
+            state.tool = toolButton.dataset.tool;
+            state.selectedWallId = null;
+            renderToolState();
+            closeMobilePanel();
+            return;
+          }
+
+          const circuitRow = event.target.closest('[data-circuit-id]');
+          if (circuitRow && !event.target.closest('button')) {
+            selectCircuit(circuitRow.dataset.circuitId);
+            closeMobilePanel();
+            return;
+          }
+
+          const deviceButton = event.target.closest('[data-device-id]');
+          if (deviceButton) {
+            selectDevice(deviceButton.dataset.deviceId);
+            closeMobilePanel();
+            return;
+          }
+
+          const wall = event.target.closest('[data-wall-id]');
+          if (wall) {
+            state.selectedWallId = wall.dataset.wallId;
+            state.tool = 'wall';
+            render();
+            return;
+          }
+
+          const floorCard = event.target.closest('.floor-card[data-floor-id]');
+          if (floorCard && state.view === VIEW_ALL && state.tool === 'inspect' && !event.target.closest('button, input, select, dialog')) {
+            state.view = floorIdFromPoint(event) || floorCard.dataset.floorId;
+            state.selectedWallId = null;
+            render();
+            return;
+          }
+
+          handleActionButtons(event);
+        });
+
+        document.addEventListener('keydown', event => {
+          const row = event.target.closest('[data-circuit-id]');
+          if (row && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault();
+            selectCircuit(row.dataset.circuitId);
+          }
+          if (event.key === 'Escape') {
+            if (els.app.classList.contains('mobile-panel-open')) closeMobilePanel();
+            else clearSelection();
+          }
+        });
+
+        document.addEventListener('pointerdown', beginWall);
+        document.addEventListener('pointermove', updateWall);
+        document.addEventListener('pointerup', finishWall);
+        document.addEventListener('pointercancel', finishWall);
+        document.addEventListener('dragenter', handleImageDragEnter);
+        document.addEventListener('dragover', handleImageDragOver);
+        document.addEventListener('dragleave', handleImageDragLeave);
+        document.addEventListener('drop', handleImageDrop);
+
+        document.querySelector('#panelToggle').addEventListener('click', togglePanel);
+        document.querySelector('#closeMobilePanel').addEventListener('click', closeMobilePanel);
+        document.querySelector('#panelBackdrop').addEventListener('click', closeMobilePanel);
+        document.querySelector('#clearSelection').addEventListener('click', clearSelection);
+        document.querySelector('#mobileClear').addEventListener('click', clearSelection);
+        document.querySelector('#addCircuit').addEventListener('click', addCircuit);
+        document.querySelector('#addFloor').addEventListener('click', addFloor);
+        document.querySelector('#deleteWall').addEventListener('click', deleteSelectedWall);
+        document.querySelector('#exportJson').addEventListener('click', exportJson);
+        document.querySelector('#createNfcLink').addEventListener('click', openNfcDialog);
+        document.querySelector('#resetDemo').addEventListener('click', resetDemo);
+        document.querySelector('#cancelDevice').addEventListener('click', () => els.dialog.close());
+        document.querySelector('#closeNfcDialog').addEventListener('click', () => els.nfcDialog.close());
+        document.querySelector('#generateNfcUrl').addEventListener('click', createNfcUrl);
+        document.querySelector('#copyNfcUrl').addEventListener('click', copyNfcUrl);
+        els.nfcBaseUrl.addEventListener('input', invalidateNfcUrl);
+        window.addEventListener('resize', syncResponsiveLayout);
+        els.deviceForm.addEventListener('submit', saveDeviceForm);
+        els.deleteDevice.addEventListener('click', deleteDialogDevice);
+      }
+
+      function handleActionButtons(event) {
+        const editCircuit = event.target.closest('[data-edit-circuit]');
+        if (editCircuit) renameCircuit(editCircuit.dataset.editCircuit);
+
+        const deleteCircuit = event.target.closest('[data-delete-circuit]');
+        if (deleteCircuit) deleteCircuitById(deleteCircuit.dataset.deleteCircuit);
+
+        const renameFloor = event.target.closest('[data-rename-floor]');
+        if (renameFloor) renameFloorById(renameFloor.dataset.renameFloor);
+
+        const deleteFloor = event.target.closest('[data-delete-floor]');
+        if (deleteFloor) deleteFloorById(deleteFloor.dataset.deleteFloor);
+
+        const moveFloor = event.target.closest('[data-move-floor]');
+        if (moveFloor) moveFloorById(moveFloor.dataset.moveFloor, Number(moveFloor.dataset.dir));
+
+        const deleteFloorImage = event.target.closest('[data-delete-floor-image]');
+        if (deleteFloorImage) deleteFloorImageById(deleteFloorImage.dataset.deleteFloorImage);
+
+        const editDevice = event.target.closest('[data-edit-device]');
+        if (editDevice) openDeviceDialog(deviceById(editDevice.dataset.editDevice));
+
+        const deleteDevice = event.target.closest('[data-delete-device]');
+        if (deleteDevice) deleteDeviceById(deleteDevice.dataset.deleteDevice);
+
+        const clickLayer = event.target.closest('.click-layer');
+        if (clickLayer) addDeviceAtClick(event, clickLayer);
+      }
+
+      function addDeviceAtClick(event, layer) {
+        if (!['outlet', 'light'].includes(state.tool)) return;
+        const svg = layer.ownerSVGElement;
+        const point = svgPoint(svg, event);
+        pendingDevice = {
+          floorId: layer.dataset.floorId,
+          x: Number(((point.x / SVG_W) * 100).toFixed(3)),
+          y: Number(((point.y / SVG_H) * 100).toFixed(3)),
+          type: state.tool
+        };
+        openDeviceDialog(null);
+      }
+
+      function beginWall(event) {
+        if (state.tool !== 'wall' || event.button !== 0) return;
+        const svg = event.target.closest('svg.plan');
+        const layer = event.target.closest('.click-layer');
+        if (!svg || !layer) return;
+        const start = svgPoint(svg, event);
+        const preview = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        preview.classList.add('user-wall', 'wall-preview');
+        preview.setAttribute('x1', start.x);
+        preview.setAttribute('y1', start.y);
+        preview.setAttribute('x2', start.x);
+        preview.setAttribute('y2', start.y);
+        svg.querySelector('.user-wall-layer').appendChild(preview);
+        activeWall = { svg, floorId: layer.dataset.floorId, start, preview, pointerId: event.pointerId };
+        svg.setPointerCapture(event.pointerId);
+        event.preventDefault();
+      }
+
+      function updateWall(event) {
+        if (!activeWall || event.pointerId !== activeWall.pointerId) return;
+        const end = svgPoint(activeWall.svg, event);
+        activeWall.preview.setAttribute('x2', end.x);
+        activeWall.preview.setAttribute('y2', end.y);
+      }
+
+      function finishWall(event) {
+        if (!activeWall || event.pointerId !== activeWall.pointerId) return;
+        const end = svgPoint(activeWall.svg, event);
+        const { floorId, start, preview } = activeWall;
+        preview.remove();
+        activeWall = null;
+        if (Math.hypot(end.x - start.x, end.y - start.y) < 8) return;
+        const floor = floorById(floorId);
+        floor.walls.push({ id: uid('wall'), x1: round(start.x), y1: round(start.y), x2: round(end.x), y2: round(end.y) });
+        persist();
+        render();
+      }
+
+      function openDeviceDialog(device) {
+        const isEdit = Boolean(device);
+        els.dialogTitle.textContent = isEdit ? 'Edit Device' : `Add ${titleCase(pendingDevice.type)}`;
+        els.deviceType.value = isEdit ? device.type : pendingDevice.type;
+        els.deviceCircuit.innerHTML = state.circuits.map(circuit => `
+          <option value="${escapeAttr(circuit.id)}">${escapeHtml(circuit.number + ' · ' + circuit.name)}</option>
+        `).join('');
+        els.deviceCircuit.value = isEdit ? device.circuitId : (state.selectedCircuitId || state.circuits[0].id);
+        els.deviceLabel.value = isEdit ? device.label : '';
+        els.deleteDevice.classList.toggle('hidden', !isEdit);
+        els.dialog.dataset.deviceId = isEdit ? device.id : '';
+        els.dialog.showModal();
+      }
+
+      function saveDeviceForm(event) {
+        event.preventDefault();
+        const existing = deviceById(els.dialog.dataset.deviceId);
+        if (existing) {
+          existing.type = els.deviceType.value;
+          existing.circuitId = els.deviceCircuit.value;
+          existing.label = els.deviceLabel.value.trim();
+          state.selectedDeviceId = existing.id;
+          state.selectedCircuitId = existing.circuitId;
+        } else if (pendingDevice) {
+          const device = {
+            id: uid('device'),
+            floorId: pendingDevice.floorId,
+            x: pendingDevice.x,
+            y: pendingDevice.y,
+            type: els.deviceType.value,
+            circuitId: els.deviceCircuit.value,
+            label: els.deviceLabel.value.trim()
+          };
+          state.devices.push(device);
+          state.selectedDeviceId = device.id;
+          state.selectedCircuitId = device.circuitId;
+        }
+        pendingDevice = null;
+        els.dialog.close();
+        persist();
+        render();
+      }
+
+      function selectCircuit(id) {
+        state.selectedCircuitId = state.selectedCircuitId === id ? null : id;
+        state.selectedDeviceId = null;
+        state.selectedWallId = null;
+        render();
+      }
+
+      function selectDevice(id) {
+        const device = deviceById(id);
+        if (!device) return;
+        state.selectedDeviceId = id;
+        state.selectedCircuitId = device.circuitId;
+        state.selectedWallId = null;
+        render();
+        if (state.tool !== 'inspect' && window.matchMedia('(min-width: 981px)').matches) openDeviceDialog(device);
+      }
+
+      function clearSelection() {
+        state.selectedCircuitId = null;
+        state.selectedDeviceId = null;
+        state.selectedWallId = null;
+        render();
+      }
+
+      function addCircuit() {
+        const next = Math.max(0, ...state.circuits.map(circuit => circuit.number)) + 1;
+        const circuit = { id: uid('circuit'), number: next, name: `Circuit ${next}` };
+        state.circuits.push(circuit);
+        state.selectedCircuitId = circuit.id;
+        persist();
+        render();
+      }
+
+      function renameCircuit(id) {
+        const circuit = circuitById(id);
+        if (!circuit) return;
+        const name = prompt('Circuit name', circuit.name);
+        if (name === null) return;
+        const trimmed = name.trim();
+        if (trimmed) circuit.name = trimmed;
+        const number = Number(prompt('Breaker number', String(circuit.number)));
+        if (Number.isFinite(number) && number > 0) circuit.number = Math.round(number);
+        state.circuits.sort((a, b) => a.number - b.number);
+        persist();
+        render();
+      }
+
+      function deleteCircuitById(id) {
+        if (state.circuits.length === 1) return;
+        const circuit = circuitById(id);
+        if (!circuit) return;
+        const affected = state.devices.filter(device => device.circuitId === id).length;
+        if (!confirm(`Delete ${circuit.name}${affected ? ` and ${affected} assigned device${affected === 1 ? '' : 's'}` : ''}?`)) return;
+        state.devices = state.devices.filter(device => device.circuitId !== id);
+        state.circuits = state.circuits.filter(entry => entry.id !== id);
+        if (state.selectedCircuitId === id) state.selectedCircuitId = null;
+        persist();
+        render();
+      }
+
+      function addFloor() {
+        const name = prompt('Floor name', `Floor ${state.floors.length + 1}`);
+        if (name === null) return;
+        const floor = {
+          id: uid('floor'),
+          name: name.trim() || `Floor ${state.floors.length + 1}`,
+          baseKey: 'blank',
+          order: state.floors.length,
+          planImage: null,
+          walls: []
+        };
+        state.floors.push(floor);
+        state.view = floor.id;
+        persist();
+        render();
+      }
+
+      function renameFloorById(id) {
+        const floor = floorById(id);
+        if (!floor) return;
+        const name = prompt('Floor name', floor.name);
+        if (name === null) return;
+        const trimmed = name.trim();
+        if (trimmed) floor.name = trimmed;
+        persist();
+        render();
+      }
+
+      function moveFloorById(id, dir) {
+        const index = state.floors.findIndex(floor => floor.id === id);
+        const next = index + dir;
+        if (index < 0 || next < 0 || next >= state.floors.length) return;
+        const [floor] = state.floors.splice(index, 1);
+        state.floors.splice(next, 0, floor);
+        state.floors.forEach((entry, order) => { entry.order = order; });
+        persist();
+        render();
+      }
+
+      function deleteFloorById(id) {
+        if (state.floors.length === 1) return;
+        const floor = floorById(id);
+        const affected = state.devices.filter(device => device.floorId === id).length;
+        if (!confirm(`Delete ${floor.name}${affected ? ` and ${affected} device${affected === 1 ? '' : 's'}` : ''}?`)) return;
+        state.floors = state.floors.filter(entry => entry.id !== id);
+        state.devices = state.devices.filter(device => device.floorId !== id);
+        if (state.view === id) state.view = VIEW_ALL;
+        persist();
+        render();
+      }
+
+      function deleteFloorImageById(id) {
+        const floor = floorById(id);
+        if (!floor || !floor.planImage) return;
+        if (!confirm(`Delete tracing image from ${floor.name}?`)) return;
+        floor.planImage = null;
+        persist();
+        render();
+      }
+
+      function deleteSelectedWall() {
+        const id = state.selectedWallId;
+        if (!id) return;
+        state.floors.forEach(floor => {
+          floor.walls = floor.walls.filter(wall => wall.id !== id);
+        });
+        state.selectedWallId = null;
+        persist();
+        render();
+      }
+
+      function deleteDeviceById(id) {
+        state.devices = state.devices.filter(device => device.id !== id);
+        if (state.selectedDeviceId === id) state.selectedDeviceId = null;
+        persist();
+        render();
+      }
+
+      function deleteDialogDevice() {
+        const id = els.dialog.dataset.deviceId;
+        if (id) deleteDeviceById(id);
+        els.dialog.close();
+      }
+
+      function handleImageDragEnter(event) {
+        const wrap = event.target.closest('.canvas-wrap[data-floor-id]');
+        if (!wrap || !dragHasImage(event)) return;
+        event.preventDefault();
+        wrap.classList.add('is-drag-over');
+      }
+
+      function handleImageDragOver(event) {
+        const wrap = event.target.closest('.canvas-wrap[data-floor-id]');
+        if (!wrap || !dragHasImage(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+        wrap.classList.add('is-drag-over');
+      }
+
+      function handleImageDragLeave(event) {
+        const wrap = event.target.closest('.canvas-wrap[data-floor-id]');
+        if (!wrap || wrap.contains(event.relatedTarget)) return;
+        wrap.classList.remove('is-drag-over');
+      }
+
+      function handleImageDrop(event) {
+        const wrap = event.target.closest('.canvas-wrap[data-floor-id]');
+        if (!wrap || !dragHasImage(event)) return;
+        event.preventDefault();
+        wrap.classList.remove('is-drag-over');
+        const file = Array.from(event.dataTransfer.files).find(item => item.type.startsWith('image/'));
+        if (!file) return;
+        const floor = floorById(wrap.dataset.floorId);
+        if (!floor) return;
+        const reader = new FileReader();
+        reader.addEventListener('load', () => {
+          floor.planImage = {
+            name: file.name,
+            type: file.type,
+            src: String(reader.result)
+          };
+          persist();
+          render();
+        });
+        reader.readAsDataURL(file);
+      }
+
+      function dragHasImage(event) {
+        const types = Array.from(event.dataTransfer?.types || []);
+        if (!types.includes('Files')) return false;
+        return Array.from(event.dataTransfer.items || []).some(item => item.kind === 'file' && item.type.startsWith('image/'));
+      }
+
+      function exportJson() {
+        const blob = new Blob([JSON.stringify(exportPayload(), null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'circuit-map.json';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function resetDemo() {
+        if (!confirm('Reset the local autosaved map to the embedded default?')) return;
+        localStorage.removeItem(STORAGE_KEY);
+        hydrate(JSON.parse(document.querySelector('#defaultMap').textContent));
+        setStatus('Reset to embedded default map.');
+        render();
+      }
+
+      function togglePanel() {
+        if (window.matchMedia('(max-width: 980px)').matches) {
+          const open = els.app.classList.toggle('mobile-panel-open');
+          setMobilePanelAccessibility(open);
+          updatePanelButton(open, true);
+          document.body.style.overflow = open ? 'hidden' : '';
+          if (open) document.querySelector('#closeMobilePanel').focus();
+          return;
+        }
+
+        const collapsed = els.app.classList.toggle('panel-collapsed');
+        updatePanelButton(!collapsed, false);
+      }
+
+      function closeMobilePanel() {
+        if (!els.app.classList.contains('mobile-panel-open')) return;
+        els.app.classList.remove('mobile-panel-open');
+        document.body.style.overflow = '';
+        setMobilePanelAccessibility(false);
+        updatePanelButton(false, true);
+      }
+
+      function setMobilePanelAccessibility(open) {
+        const panel = document.querySelector('#sidePanel');
+        const backdrop = document.querySelector('#panelBackdrop');
+        panel.inert = !open;
+        panel.setAttribute('aria-hidden', String(!open));
+        backdrop.setAttribute('aria-hidden', String(!open));
+      }
+
+      function updatePanelButton(open, compact) {
+        const button = document.querySelector('#panelToggle');
+        button.setAttribute('aria-expanded', String(open));
+        if (compact) {
+          button.title = open ? 'Close controls' : 'Open controls';
+          button.setAttribute('aria-label', button.title);
+          button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+          return;
+        }
+        button.title = open ? 'Hide panel' : 'Show panel';
+        button.setAttribute('aria-label', button.title);
+        button.innerHTML = open
+          ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18 9 12l6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+          : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      }
+
+      function syncResponsiveLayout() {
+        const compact = window.matchMedia('(max-width: 980px)').matches;
+        if (compact === compactMode) return;
+        compactMode = compact;
+        els.app.classList.remove('mobile-panel-open');
+        document.body.style.overflow = '';
+        const panel = document.querySelector('#sidePanel');
+        panel.inert = compact;
+        panel.setAttribute('aria-hidden', String(compact));
+        document.querySelector('#panelBackdrop').setAttribute('aria-hidden', 'true');
+        updatePanelButton(compact ? false : !els.app.classList.contains('panel-collapsed'), compact);
+      }
+
+      function svgPoint(svg, event) {
+        const point = svg.createSVGPoint();
+        point.x = event.clientX;
+        point.y = event.clientY;
+        const local = point.matrixTransform(svg.getScreenCTM().inverse());
+        return { x: clamp(local.x, 0, SVG_W), y: clamp(local.y, 0, SVG_H) };
+      }
+
+      function floorIdFromPoint(event) {
+        const titleHit = Array.from(document.querySelectorAll('.floor-card:not(.hidden) .floor-title'))
+          .find(title => {
+            const rect = title.getBoundingClientRect();
+            return event.clientX >= rect.left &&
+              event.clientX <= rect.right &&
+              event.clientY >= rect.top &&
+              event.clientY <= rect.bottom;
+          });
+        return titleHit ? titleHit.closest('.floor-card').dataset.floorId : null;
+      }
+
+      function floorById(id) {
+        return state.floors.find(floor => floor.id === id);
+      }
+
+      function circuitById(id) {
+        return state.circuits.find(circuit => circuit.id === id);
+      }
+
+      function deviceById(id) {
+        return state.devices.find(device => device.id === id);
+      }
+
+      function deviceLabel(device) {
+        return device.label || titleCase(device.type);
+      }
+
+      function titleCase(text) {
+        return text.charAt(0).toUpperCase() + text.slice(1);
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function round(value) {
+        return Number(value.toFixed(2));
+      }
+
+      function setStatus(message) {
+        if (els.status) els.status.textContent = message;
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, char => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[char]));
+      }
+
+      function escapeAttr(value) {
+        return escapeHtml(value);
+      }
+
+      function cssEscape(value) {
+        return window.CSS && CSS.escape ? CSS.escape(value) : String(value).replace(/"/g, '\\"');
+      }
+
+      function outletIcon() {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10.2" cy="9" r="1.2" fill="currentColor"/><circle cx="13.8" cy="9" r="1.2" fill="currentColor"/><path d="M10 15h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+      }
+
+      function lightIcon() {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+      }
+
+      function editIcon() {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m13 7 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+      }
+
+      function trashIcon() {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 11v6M14 11v6M8 7l1-3h6l1 3M7 7l1 13h8l1-13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      }
+
+      function imageOffIcon() {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h9M20 15V5.5A1.5 1.5 0 0 0 18.5 4H18M4 9v9.5A1.5 1.5 0 0 0 5.5 20h13c.37 0 .72-.14.98-.37M4 16l4-4 3 3 .8-.8M14 14l2-2 4 4M3 3l18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      }
+
+      function upIcon() {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      }
+
+      function downIcon() {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      }
+
+      boot().catch(error => {
+        console.error(error);
+        els.subtitle.textContent = 'Map could not be loaded.';
+      });
+    })();
+  </script>
+</body>
+</html>

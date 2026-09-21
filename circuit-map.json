@@ -1,0 +1,62 @@
+{
+  "version": 2,
+  "updatedAt": "2026-07-30T22:48:29.333Z",
+  "floors": [
+    {
+      "id": "upper",
+      "name": "Upper Floor",
+      "baseKey": "upper",
+      "order": 0,
+      "planImage": null,
+      "walls": []
+    },
+    {
+      "id": "main",
+      "name": "Main Floor",
+      "baseKey": "main",
+      "order": 1,
+      "planImage": null,
+      "walls": []
+    },
+    {
+      "id": "basement",
+      "name": "Basement",
+      "baseKey": "basement",
+      "order": 2,
+      "planImage": null,
+      "walls": []
+    }
+  ],
+  "circuits": [
+    {
+      "id": "circuit-1",
+      "number": 1,
+      "name": "Circuit 1"
+    },
+    {
+      "id": "circuit_ms6y85c6_zie7nn",
+      "number": 2,
+      "name": "Circuit 2"
+    }
+  ],
+  "devices": [
+    {
+      "id": "device_ms6y4toa_9tyy61",
+      "floorId": "basement",
+      "circuitId": "circuit-1",
+      "type": "outlet",
+      "label": "2",
+      "x": 45.891,
+      "y": 70.33
+    },
+    {
+      "id": "device_ms6y60ds_cjcqey",
+      "floorId": "basement",
+      "circuitId": "circuit-1",
+      "type": "light",
+      "label": "",
+      "x": 74.854,
+      "y": 30.423
+    }
+  ]
+}
