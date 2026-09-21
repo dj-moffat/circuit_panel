@@ -1984,7 +1984,7 @@
 
       function renderToolState() {
         els.app.dataset.tool = state.tool;
-        document.querySelectorAll('[data-tool]').forEach(button => {
+        document.querySelectorAll('.tool-button[data-tool]').forEach(button => {
           button.setAttribute('aria-pressed', String(button.dataset.tool === state.tool));
         });
         els.deleteWall.disabled = !state.selectedWallId;
@@ -2042,12 +2042,18 @@
             return;
           }
 
-          const toolButton = event.target.closest('[data-tool]');
+          const toolButton = event.target.closest('.tool-button[data-tool]');
           if (toolButton) {
             state.tool = toolButton.dataset.tool;
             state.selectedWallId = null;
             renderToolState();
             closeMobilePanel();
+            return;
+          }
+
+          const plan = event.target.closest('svg.plan');
+          if (plan && ['outlet', 'light'].includes(state.tool)) {
+            addDeviceAtClick(event, plan);
             return;
           }
 
@@ -2151,16 +2157,15 @@
         const deleteDevice = event.target.closest('[data-delete-device]');
         if (deleteDevice) deleteDeviceById(deleteDevice.dataset.deleteDevice);
 
-        const clickLayer = event.target.closest('.click-layer');
-        if (clickLayer) addDeviceAtClick(event, clickLayer);
       }
 
-      function addDeviceAtClick(event, layer) {
+      function addDeviceAtClick(event, svg) {
         if (!['outlet', 'light'].includes(state.tool)) return;
-        const svg = layer.ownerSVGElement;
+        const canvas = svg.closest('.canvas-wrap[data-floor-id]');
+        if (!canvas) return;
         const point = svgPoint(svg, event);
         pendingDevice = {
-          floorId: layer.dataset.floorId,
+          floorId: canvas.dataset.floorId,
           x: Number(((point.x / SVG_W) * 100).toFixed(3)),
           y: Number(((point.y / SVG_H) * 100).toFixed(3)),
           type: state.tool
@@ -2171,8 +2176,8 @@
       function beginWall(event) {
         if (state.tool !== 'wall' || event.button !== 0) return;
         const svg = event.target.closest('svg.plan');
-        const layer = event.target.closest('.click-layer');
-        if (!svg || !layer) return;
+        const canvas = svg?.closest('.canvas-wrap[data-floor-id]');
+        if (!svg || !canvas) return;
         const start = svgPoint(svg, event);
         const preview = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         preview.classList.add('user-wall', 'wall-preview');
@@ -2181,7 +2186,7 @@
         preview.setAttribute('x2', start.x);
         preview.setAttribute('y2', start.y);
         svg.querySelector('.user-wall-layer').appendChild(preview);
-        activeWall = { svg, floorId: layer.dataset.floorId, start, preview, pointerId: event.pointerId };
+        activeWall = { svg, floorId: canvas.dataset.floorId, start, preview, pointerId: event.pointerId };
         svg.setPointerCapture(event.pointerId);
         event.preventDefault();
       }
